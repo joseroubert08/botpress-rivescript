@@ -1,5 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
+import _ from 'lodash'
 
 import RiveScript from 'rivescript'
 
@@ -38,17 +39,42 @@ module.exports = {
   ready: function(skin) {
 
     const riveDirectory = path.join(skin.dataLocation, 'rivescript')
+    const memoryFile = path.join(skin.dataLocation, 'rivescript.brain.json')
 
     if (!fs.existsSync(riveDirectory)) {
       fs.mkdirSync(riveDirectory)
       fs.copySync(path.join(__dirname, '../templates'), riveDirectory)
     }
 
+    const saveMemory = () => {
+      if (rs && rs.write) {
+        const usersVars = {}
+        const users = _.keys(rs._users)
+        users.forEach(user => {
+          usersVars[user] = rs.getUservars(user)
+        })
+
+        const content = JSON.stringify(usersVars)
+        fs.writeFileSync(memoryFile, content)
+      }
+    }
+    const restoreMemory = () => {
+      if (fs.existsSync(memoryFile)) {
+        skin.logger.debug('[rivescript] Restoring brain')
+        const content = JSON.parse(fs.readFileSync(memoryFile))
+        const users = _.keys(content)
+        users.forEach(user => rs.setUservars(user, content[user]))
+      }
+    }
+
     const reloadRiveScript = () => {
+      saveMemory()
+
       rs = new RiveScript()
 
       rs.loadDirectory(riveDirectory, (batchNumber) => {
         rs.sortReplies()
+        restoreMemory()
       }, (err) => {
         console.log('Error', err) // TODO clean that
       })
@@ -57,6 +83,8 @@ module.exports = {
     }
 
     reloadRiveScript()
+
+    setInterval(saveMemory, 30000)
 
     const router = skin.getRouter('skin-rivescript')
 
