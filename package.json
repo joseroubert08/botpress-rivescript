@@ -5,6 +5,7 @@
   "main": "bin/node.bundle.js",
   "botskin": {
     "menuText": "RiveScript",
+    "menuIcon": "hearing",
     "webBundle": "bin/web.bundle.js"
   },
   "scripts": {
